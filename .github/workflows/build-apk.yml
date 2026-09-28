@@ -1,0 +1,26 @@
+name: Build My Watch APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil kode dari GitHub
+        uses: actions/checkout@v4
+
+      - name: Ekstrak file ZIP
+        run: |
+          unzip -o MyWatch_Mode_HP.zip -d extracted
+
+      - name: Lihat hasil ekstraksi
+        run: |
+          ls -la extracted
