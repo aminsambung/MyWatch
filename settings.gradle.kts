@@ -1,18 +1,12 @@
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
 
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+org.gradle.parallel=false
+org.gradle.workers.max=2
+org.gradle.daemon=false
+org.gradle.caching=true
 
-rootProject.name = "MyWatch"
-include(":app")
+android.useAndroidX=true
+android.enableJetifier=true
+
+kotlin.code.style=official
+kotlin.incremental=false
