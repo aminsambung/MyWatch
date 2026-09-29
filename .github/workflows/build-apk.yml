@@ -14,41 +14,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Mengambil kode dari GitHub
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Menyiapkan Java 17
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Menyiapkan Android SDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      # Menyiapkan Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      # Memasang Android SDK
-      - name: Install Android SDK
+      - name: Setup Android SDK
         run: |
-          sdkmanager --install \
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" \
+            -name sdkmanager -type f | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "sdkmanager tidak ditemukan"
+            exit 1
+          fi
+
+          echo "SDK ditemukan: $SDKMANAGER"
+
+          yes | "$SDKMANAGER" \
+            --sdk_root="$SDK_ROOT" --licenses || true
+
+          "$SDKMANAGER" \
+            --sdk_root="$SDK_ROOT" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      # Mengekstrak proyek
       - name: Extract project
         run: |
           mkdir -p extracted
           unzip -o MyWatch_Mode_HP.zip -d extracted
 
-      # Memperbaiki konfigurasi Java dan Kotlin
       - name: Fix Java and Kotlin
         run: |
           python3 - <<'PY'
@@ -75,15 +80,13 @@ jobs:
           )
 
           p.write_text(s)
-          print("Konfigurasi Java dan Kotlin diperbarui.")
+          print("Konfigurasi Java dan Kotlin diperbarui")
           PY
 
-      # Membuat APK
       - name: Build APK
         run: |
           gradle -p extracted assembleDebug
 
-      # Mengunggah APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
