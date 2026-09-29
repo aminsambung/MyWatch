@@ -6,92 +6,54 @@ on:
     branches:
       - main
 
-permissions:
-  contents: read
-
 jobs:
   build:
-    name: Build My Watch
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-      # Mengambil kode dari repositori
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Menyiapkan Java 17
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Menyiapkan Gradle
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      # Menyiapkan Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platforms;android-35
-            build-tools;35.0.0
 
-      # Memperbaiki konfigurasi Java dan Kotlin
-      - name: Fix Java and Kotlin
+      - name: Install Android SDK packages
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+          yes | sdkmanager --licenses
+          sdkmanager \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
-          p = Path("app/build.gradle.kts")
-
-          if not p.exists():
-              raise SystemExit("File app/build.gradle.kts tidak ditemukan")
-
-          s = p.read_text()
-
-          s = re.sub(
-              r'JavaVersion\.VERSION_1_8',
-              'JavaVersion.VERSION_17',
-              s
-          )
-
-          s = re.sub(
-              r'JavaVersion\.VERSION_8',
-              'JavaVersion.VERSION_17',
-              s
-          )
-
-          s = re.sub(
-              r'jvmTarget\s*=\s*["\'](?:1\.8|8)["\']',
-              'jvmTarget = "17"',
-              s
-          )
-
-          p.write_text(s)
-          print("Konfigurasi Java dan Kotlin diperbarui.")
-          PY
-
-      # Memastikan file proyek tersedia
-      - name: Check project
+      - name: Extract project
         run: |
-          ls -la
-          ls -la app
+          unzip -o MyWatch_Mode_HP.zip -d extracted
 
-      # Membuat APK
+      - name: Fix Java and Kotlin versions
+        run: |
+          find extracted -name build.gradle.kts \
+            -path '*/app/*' -print
+
       - name: Build APK
         run: |
-          gradle --no-daemon assembleDebug
+          cd extracted
+          GRADLEW=$(find . -name gradlew -type f | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "Gradle wrapper tidak ditemukan"
+            exit 1
+          fi
+          chmod +x "$GRADLEW"
+          cd "$(dirname "$GRADLEW")"
+          ./gradlew assembleDebug
 
-      # Mengunggah APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MyWatch-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: extracted/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          retention-days: 14
