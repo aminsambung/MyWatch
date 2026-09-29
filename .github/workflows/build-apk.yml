@@ -14,40 +14,80 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Mengambil kode dari GitHub
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Menyiapkan Java 17
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # Menyiapkan Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Menyiapkan Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
+      # Memasang Android SDK
       - name: Install Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+          sdkmanager --install \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
+      # Mengekstrak proyek
       - name: Extract project
         run: |
-          mkdir extracted
+          mkdir -p extracted
           unzip -o MyWatch_Mode_HP.zip -d extracted
 
+      # Memperbaiki konfigurasi Java dan Kotlin
+      - name: Fix Java and Kotlin
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("extracted/app/build.gradle.kts")
+
+          if not p.exists():
+              raise SystemExit("File build.gradle.kts tidak ditemukan")
+
+          s = p.read_text()
+
+          s = re.sub(
+              r'JavaVersion\.VERSION_1_8',
+              'JavaVersion.VERSION_17',
+              s
+          )
+
+          s = re.sub(
+              r'jvmTarget\s*=\s*"(?:1\.8|8)"',
+              'jvmTarget = "17"',
+              s
+          )
+
+          p.write_text(s)
+          print("Konfigurasi Java dan Kotlin diperbarui.")
+          PY
+
+      # Membuat APK
       - name: Build APK
         run: |
           gradle -p extracted assembleDebug
 
+      # Mengunggah APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MyWatch-APK
           path: extracted/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
