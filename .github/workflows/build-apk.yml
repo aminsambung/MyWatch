@@ -14,36 +14,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Mengambil source code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Menginstal Java 17
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Menyiapkan Android SDK
+      # Menyiapkan Android SDK bawaan runner
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: ''
-
-      # Memeriksa SDK
-      - name: Check SDK
         run: |
-          echo "Memeriksa Android SDK..."
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager --version
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+
+          if [ -z "$SDK_ROOT" ]; then
+            echo "ERROR: Android SDK tidak ditemukan"
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" \
+            -type f -name sdkmanager | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager tidak ditemukan"
+            exit 1
+          fi
+
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+
+          "$SDKMANAGER" --version
 
       # Menginstal paket Android
       - name: Install SDK Packages
         run: |
-          yes | sdkmanager --licenses
+          yes | "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --licenses || true
 
-          sdkmanager --install \
+          "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" \
+            --install \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
@@ -72,7 +86,6 @@ jobs:
             exit 1
           fi
 
-      # Menyiapkan Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
