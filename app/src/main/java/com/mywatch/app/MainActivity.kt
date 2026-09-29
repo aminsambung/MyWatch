@@ -3,7 +3,6 @@ package com.mywatch.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -13,8 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,20 +29,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MyWatchApp() {
-    var time by remember {
-        mutableStateOf(
-            LocalTime.now().format(
-                DateTimeFormatter.ofPattern("HH:mm")
-            )
-        )
-    }
+    var time by remember { mutableStateOf(getCurrentTime()) }
 
     LaunchedEffect(Unit) {
         while (true) {
-            time = LocalTime.now().format(
-                DateTimeFormatter.ofPattern("HH:mm")
-            )
-            kotlinx.coroutines.delay(1000)
+            time = getCurrentTime()
+            delay(1000)
         }
     }
 
@@ -94,6 +87,11 @@ fun MyWatchApp() {
             }
         }
     }
+}
+
+fun getCurrentTime(): String {
+    return SimpleDateFormat("HH:mm", Locale.getDefault())
+        .format(Date())
 }
 
 @Composable
