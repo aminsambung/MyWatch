@@ -1,4 +1,4 @@
-name: Android APK Build
+name: Build MyWatch APK
 
 on:
   push:
@@ -10,10 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      JAVA_TOOL_OPTIONS: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
-      GRADLE_OPTS: "-Dorg.gradle.daemon=false"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,16 +18,19 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK
+      - name: Install Android SDK Packages
         run: |
-          sdkmanager --install "platform-tools"
-          sdkmanager --install "platforms;android-35"
-          sdkmanager --install "build-tools;35.0.0"
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+          yes | sdkmanager --licenses
 
       - name: Find Android Project
         run: |
@@ -39,13 +38,30 @@ jobs:
 
       - name: Build APK
         run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon \
+          GRADLEW=$(find . -name gradlew -type f | head -n 1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew tidak ditemukan"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          cd "$PROJECT_DIR"
+
+          chmod +x gradlew
+
+          ./gradlew \
+            --no-daemon \
             --max-workers=2 \
-            clean assembleDebug
+            assembleDebug
+
+      - name: Check APK
+        run: |
+          find . -name "*.apk" -type f
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MyWatch-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: MyWatch-APK
+          path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
