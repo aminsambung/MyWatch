@@ -6,24 +6,40 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # Mengambil source code
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      # Menginstal Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # Menyiapkan Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
-      - name: Install Android SDK Packages
+      # Memeriksa SDK
+      - name: Check SDK
+        run: |
+          echo "Memeriksa Android SDK..."
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --version
+
+      # Menginstal paket Android
+      - name: Install SDK Packages
         run: |
           yes | sdkmanager --licenses
 
@@ -32,10 +48,10 @@ jobs:
             "platforms;android-35" \
             "build-tools;35.0.0"
 
+      # Memeriksa file proyek
       - name: Check Project
         run: |
-          echo "Memeriksa struktur proyek..."
-
+          echo "Struktur repository:"
           ls -la
 
           if [ ! -f "settings.gradle.kts" ] && \
@@ -44,24 +60,41 @@ jobs:
             exit 1
           fi
 
-          if [ ! -f "app/build.gradle.kts" ] && \
-             [ ! -f "app/build.gradle" ]; then
-            echo "ERROR: build.gradle di folder app tidak ditemukan"
+          if [ ! -f "build.gradle.kts" ] && \
+             [ ! -f "build.gradle" ]; then
+            echo "ERROR: build.gradle utama tidak ditemukan"
             exit 1
           fi
 
+          if [ ! -f "app/build.gradle.kts" ] && \
+             [ ! -f "app/build.gradle" ]; then
+            echo "ERROR: app/build.gradle tidak ditemukan"
+            exit 1
+          fi
+
+      # Menyiapkan Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      # Membangun APK
       - name: Build APK
         run: |
-          gradle assembleDebug --no-daemon
+          gradle assembleDebug \
+            --no-daemon \
+            --stacktrace
 
+      # Memeriksa hasil build
+      - name: Check APK
+        run: |
+          find app/build/outputs/apk -name "*.apk"
+
+      # Mengunggah APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MyWatch-APK
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 7
